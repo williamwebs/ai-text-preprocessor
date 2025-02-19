@@ -215,7 +215,20 @@ export default function Home() {
               {detectedResult !== "" && (
                 <div className="chat chat-start max-w-2xl">
                   <div className="chat-bubble chat-bubble-primary text-white text-base">
-                    Detected language: {detectedResult}
+                    Detected language:{" "}
+                    {detectedResult === "en"
+                      ? "English"
+                      : detectedResult === "pt"
+                      ? "Portuguese"
+                      : detectedResult === "es"
+                      ? "Spanish"
+                      : detectedResult === "ru"
+                      ? "Russian"
+                      : detectedResult === "tr"
+                      ? "Turkish"
+                      : detectedResult === "fr"
+                      ? "French"
+                      : ""}
                   </div>
                 </div>
               )}
