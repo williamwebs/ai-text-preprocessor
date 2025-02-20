@@ -39,6 +39,18 @@ interface Conversation {
   }>;
 }
 
+interface DownloadProgressEvent extends Event {
+  loaded: number;
+  total: number;
+}
+
+interface DownloadMonitor {
+  addEventListener(
+    type: "downloadprogress",
+    listener: (e: DownloadProgressEvent) => void
+  ): void;
+}
+
 export default function Home() {
   const [languageDetector, setLanguageDetector] =
     useState<AILanguageDetector | null>(null);
@@ -67,12 +79,15 @@ export default function Home() {
         setLanguageDetector(detector);
       } else if (languageCapabilities.availble === "after-download") {
         const detector = await window.ai.languageDetector.create({
-          monitor(m: any) {
-            m.addEventListener("downloadprogress", (e: any) => {
-              console.log(
-                `Language Detector downloaded ${e.loaded} of ${e.total} bytes.`
-              );
-            });
+          monitor(m: DownloadMonitor) {
+            m.addEventListener(
+              "downloadprogress",
+              (e: DownloadProgressEvent) => {
+                console.log(
+                  `Language Detector downloaded ${e.loaded} of ${e.total} bytes.`
+                );
+              }
+            );
           },
         });
         await detector.ready;
@@ -95,12 +110,15 @@ export default function Home() {
         setSummarizer(summarizerInstance);
       } else if (summarizerCapabilities.available === "after-download") {
         const summarizerInstance = await window.ai.summarizer.create({
-          monitor(m: any) {
-            m.addEventListener("downloadprogress", (e: any) => {
-              console.log(
-                `Summarizer downloaded ${e.loaded} of ${e.total} bytes.`
-              );
-            });
+          monitor(m: DownloadMonitor) {
+            m.addEventListener(
+              "downloadprogress",
+              (e: DownloadProgressEvent) => {
+                console.log(
+                  `Summarizer downloaded ${e.loaded} of ${e.total} bytes.`
+                );
+              }
+            );
           },
         });
 
@@ -162,7 +180,7 @@ export default function Home() {
       try {
         const detectionResult = await languageDetector.detect(text);
         const bestCandidate = detectionResult.reduce(
-          (best: any, candidate: any) =>
+          (best: DetectionCandidate, candidate: DetectionCandidate) =>
             candidate.confidence > best.confidence ? candidate : best,
           detectionResult[0]
         );
@@ -188,7 +206,7 @@ export default function Home() {
         localStorage.setItem("conversation", JSON.stringify(allConversation));
         // return detectionResult;
 
-        console.log(detectedResult)
+        console.log(detectedResult);
       } catch (error) {
         console.error("Detection failed:", error);
       }
