@@ -20,12 +20,17 @@ interface Translator {
   ready: Promise<void>;
 }
 
+interface Translation {
+  lang: string;
+  text: string;
+}
+
 interface Conversation {
   input: string;
   result: Array<{
     detectedLanguage?: string;
     summary?: string;
-    translations?: string[];
+    translations?: Translation[];
   }>;
 }
 
@@ -86,6 +91,7 @@ export default function Home() {
   const initializeSummarizerApi = async () => {
     try {
       const summarizerCapabilities = await window.ai.summarizer.capabilities();
+      console.log(summarizerCapabilities);
       if (summarizerCapabilities.available === "readily") {
         const summarizerInstance = await window.ai.summarizer.create();
         setSummarizer(summarizerInstance);
@@ -99,7 +105,11 @@ export default function Home() {
             });
           },
         });
+
+        console.log("Waiting for summarizer to be ready...");
         await summarizerInstance.ready;
+        console.log("Summarizer is ready");
+
         setSummarizer(summarizerInstance);
       } else {
         console.error("Summarizer API is not available.");
@@ -189,8 +199,94 @@ export default function Home() {
   };
 
   // handle summaization
-  const handleSummarize = async (message: Conversation) => {
-    console.log(message);
+  const handleSummarize = async (index: number) => {
+    const specificData = conversation[index];
+    const longText = specificData.input;
+    console.log(specificData);
+
+    if (!summarizer) {
+      console.error("Summarizer is not initialized.");
+      return;
+    }
+
+    const matches = longText.match(/\b\w+\b/g);
+
+    if (matches && matches.length < 150) {
+      alert("Sentence is too short");
+      return;
+    }
+
+    try {
+      const summary = await summarizer.summarize(longText);
+      console.log("Summary:", summary);
+
+      const updatedConversation = [...conversation];
+
+      updatedConversation[index] = {
+        ...updatedConversation[index],
+        result: [...updatedConversation[index].result, { summary }],
+      };
+
+      setConversation(updatedConversation);
+
+      // save in ls
+      localStorage.setItem("conversation", JSON.stringify(updatedConversation));
+    } catch (error) {
+      console.error("Error summarizing text", error);
+    }
+  };
+
+  // handle language change
+  const handleLanguageChange = async (
+    e: React.ChangeEvent<HTMLSelectElement>,
+    cIndex: number
+  ) => {
+    const targetLanguage = e.target.value;
+
+    if (!translator) {
+      console.error("Translator is not initialized.");
+      return;
+    }
+
+    try {
+      // translation data for the specific conversation
+      const translation = await translator.translate(
+        conversation[cIndex].input,
+        targetLanguage
+      );
+      console.log("Translated text:", translation);
+
+      // new translation data
+      const newTranslation = { lang: targetLanguage, text: translation };
+
+      const updatedConversation = conversation.map((item, index) => {
+        if (index === cIndex) {
+          const translationResult = item.result.find((r) => r.translations);
+
+          if (translationResult) {
+            return {
+              ...item,
+              result: item.result.map((r) =>
+                r.translations
+                  ? { ...r, translations: [...r.translations, newTranslation] }
+                  : r
+              ),
+            };
+          } else {
+            return {
+              ...item,
+              result: [...item.result, { translations: [newTranslation] }],
+            };
+          }
+        }
+        return item;
+      });
+
+      setConversation(updatedConversation);
+      localStorage.setItem("conversation", JSON.stringify(updatedConversation));
+    } catch (error) {
+      console.error("Error translating text:", error);
+    }
   };
 
   return (
@@ -210,8 +306,9 @@ export default function Home() {
                 className="flex-1 h-full w-full p-1 text-gray-900 text-base placeholder:text-gray-500 placeholder:text-sm resize-none border rounded focus:outline-slate-200 focus:ring-teal-500 focus:ring"
               ></textarea>
               <button
+                disabled={inputText === ""}
                 type="submit"
-                className="bg-black text-gray-100 px-5 rounded border border-transparent flex items-center gap-1"
+                className="bg-black text-gray-100 px-5 rounded border border-transparent flex items-center gap-1 disabled:cursor-wait"
               >
                 <span className="hidden sm:inline-block">send</span>{" "}
                 <IoIosSend className="size-4" />
@@ -245,14 +342,16 @@ export default function Home() {
                       >
                         {message.result[0].detectedLanguage === "en" && (
                           <button
-                            onClick={() => handleSummarize(message)}
-                            className="border py-1 rounded text-sm bg-gray-800 text-gray-100 border-transparent"
+                            // disabled={!summarizer || loading}
+                            onClick={() => handleSummarize(index)}
+                            className="border py-1 rounded text-sm bg-gray-800 text-gray-100 border-transparent disabled:cursor-wait"
                           >
                             Summarize
                           </button>
                         )}
 
                         <select
+                          onChange={(e) => handleLanguageChange(e, index)}
                           name="language"
                           className={`select select-bordered w-full py-1 focus:outline-none focus:ring-0 rounded`}
                         >
@@ -290,6 +389,32 @@ export default function Home() {
                       </div>
                     </div>
                   )}
+
+                  {/* summarized text */}
+                  {message.result[1]?.summary && (
+                    <div className="chat chat-start max-w-2xl">
+                      <div className="chat-bubble chat-bubble-primary text-white text-base">
+                        {message.result[1].summary}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* translation */}
+                  {message.result[1]?.translations &&
+                    message.result[1]?.translations.length > 0 && (
+                      <div>
+                        {message.result[1]?.translations.map((trans, index) => (
+                          <div
+                            className="chat chat-start max-w-2xl"
+                            key={index}
+                          >
+                            <div className="chat-bubble chat-bubble-primary text-white text-base">
+                              {trans.text}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                 </div>
               ))}
             </div>

@@ -30,7 +30,10 @@ const WelcomeScreen = ({ input, setInput, detectLanguageFunction }: Props) => {
               onChange={(e) => setInput(e.target.value)}
               className="flex-1 h-full w-full p-1 text-gray-900 text-base placeholder:text-gray-500 placeholder:text-sm resize-none border rounded focus:outline-slate-200 focus:ring-teal-500 focus:ring"
             ></textarea>
-            <button className="bg-black text-gray-100 px-4 rounded border border-transparent flex items-center gap-1">
+            <button
+              disabled={input === ""}
+              className="bg-black text-gray-100 px-4 rounded border border-transparent flex items-center gap-1 disabled:cursor-wait"
+            >
               <span className="hidden sm:inline-block">send</span>{" "}
               <IoIosSend className="size-4" />
             </button>
