@@ -3,6 +3,7 @@
 import WelcomeScreen from "@/components/WelcomeScreen";
 import React, { useEffect, useState, useRef } from "react";
 import { IoIosSend } from "react-icons/io";
+import ReactMarkdown from "react-markdown";
 
 interface DetectionCandidate {
   detectedLanguage: string;
@@ -105,11 +106,26 @@ export default function Home() {
     try {
       const summarizerCapabilities = await window.ai.summarizer.capabilities();
       console.log(summarizerCapabilities);
+
+      if (summarizerCapabilities.available === "no") {
+        console.error("The Summarizer API isn't usable");
+        return;
+      }
+
+      // options
+      const options = {
+        sharedContext: "general content",
+        type: "key-points",
+        format: "markdown",
+        length: "medium",
+      };
+
       if (summarizerCapabilities.available === "readily") {
-        const summarizerInstance = await window.ai.summarizer.create();
+        const summarizerInstance = await window.ai.summarizer.create(options);
         setSummarizer(summarizerInstance);
       } else if (summarizerCapabilities.available === "after-download") {
         const summarizerInstance = await window.ai.summarizer.create({
+          ...options,
           monitor(m: DownloadMonitor) {
             m.addEventListener(
               "downloadprogress",
@@ -416,7 +432,9 @@ export default function Home() {
                   {message.result[1]?.summary && (
                     <div className="chat chat-start max-w-2xl">
                       <div className="chat-bubble chat-bubble-primary text-white text-base">
-                        {message.result[1].summary}
+                        <ReactMarkdown>
+                          {message.result[1].summary}
+                        </ReactMarkdown>
                       </div>
                     </div>
                   )}
