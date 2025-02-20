@@ -186,7 +186,7 @@ export default function Home() {
         setConversation(allConversation);
         setInputText("");
         localStorage.setItem("conversation", JSON.stringify(allConversation));
-        return detectionResult;
+        // return detectionResult;
       } catch (error) {
         console.error("Detection failed:", error);
       }
