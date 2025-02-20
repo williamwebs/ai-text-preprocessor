@@ -34,11 +34,6 @@ interface Conversation {
   }>;
 }
 
-interface LanguageDetectorCapabilities {
-  available: "readily" | "after-download" | "no";
-  languageAvailable?: (lang: string) => string;
-}
-
 export default function Home() {
   const [languageDetector, setLanguageDetector] =
     useState<AILanguageDetector | null>(null);
@@ -46,9 +41,7 @@ export default function Home() {
   const [translator, setTranslator] = useState<Translator | null>(null);
   const [conversation, setConversation] = useState<Conversation[]>([]);
   const [inputText, setInputText] = useState<string>("");
-  const [loading, setLoading] = useState<boolean>(false);
   const [detectedResult, setDetectedResult] = useState<string>("");
-  const [targetLanguage, setTargetLanguage] = useState<string>("");
 
   const chatContainerRef = useRef<HTMLDivElement>(null);
 
@@ -342,7 +335,7 @@ export default function Home() {
                       >
                         {message.result[0].detectedLanguage === "en" && (
                           <button
-                            // disabled={!summarizer || loading}
+                            // disabled={!summarizer}
                             onClick={() => handleSummarize(index)}
                             className="border py-1 rounded text-sm bg-gray-800 text-gray-100 border-transparent disabled:cursor-wait"
                           >
