@@ -1,14 +1,21 @@
 import { IoIosSend } from "react-icons/io";
 
+interface DetectionCandidate {
+  detectedLanguage: string;
+  confidence: number;
+}
+
 interface Props {
   input: string;
   setInput: React.Dispatch<React.SetStateAction<string>>;
-  detectLanguageFunction: (text: string) => Promise<any>;
+  detectLanguageFunction: (text: string) => Promise<DetectionCandidate[]>;
 }
 
 const WelcomeScreen = ({ input, setInput, detectLanguageFunction }: Props) => {
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
     const detectedLanguage = await detectLanguageFunction(input);
+    console.log(detectedLanguage);
   };
 
   return (

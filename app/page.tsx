@@ -4,19 +4,24 @@ import WelcomeScreen from "@/components/WelcomeScreen";
 import React, { useEffect, useState, useRef } from "react";
 import { IoIosSend } from "react-icons/io";
 
+interface DetectionCandidate {
+  detectedLanguage: string;
+  confidence: number;
+}
+
 interface AILanguageDetector {
-  detect(text: string): Promise<any>;
+  detect(text: string): Promise<DetectionCandidate[]>;
   destroy(): void;
   ready: Promise<void>;
 }
 
 interface Summarizer {
-  summarize: (text: string) => Promise<any>;
+  summarize: (text: string) => Promise<string>;
   ready: Promise<void>;
 }
 
 interface Translator {
-  translate: (text: string, targetLang: string) => Promise<any>;
+  translate: (text: string, targetLang: string) => Promise<string>;
   ready: Promise<void>;
 }
 
@@ -148,7 +153,9 @@ export default function Home() {
   }, []);
 
   // detect language fn
-  const detectLanguageFunction = async (input: string) => {
+  const detectLanguageFunction = async (
+    input: string
+  ): Promise<DetectionCandidate[]> => {
     if (languageDetector) {
       const text = input;
 
@@ -179,10 +186,12 @@ export default function Home() {
         setConversation(allConversation);
         setInputText("");
         localStorage.setItem("conversation", JSON.stringify(allConversation));
+        return detectionResult;
       } catch (error) {
         console.error("Detection failed:", error);
       }
     }
+    return [];
   };
 
   // handle form submit
