@@ -1,8 +1,8 @@
 "use client";
 
 import WelcomeScreen from "@/components/WelcomeScreen";
-import { log } from "node:console";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
+import { IoIosSend } from "react-icons/io";
 
 interface AILanguageDetector {
   detect(text: string): Promise<any>;
@@ -20,9 +20,13 @@ interface Translator {
   ready: Promise<void>;
 }
 
-interface Message {
-  role: "user" | "ai";
-  text: string;
+interface Conversation {
+  input: string;
+  result: Array<{
+    detectedLanguage?: string;
+    summary?: string;
+    translations?: string[];
+  }>;
 }
 
 interface LanguageDetectorCapabilities {
@@ -35,11 +39,20 @@ export default function Home() {
     useState<AILanguageDetector | null>(null);
   const [summarizer, setSummarizer] = useState<Summarizer | null>(null);
   const [translator, setTranslator] = useState<Translator | null>(null);
-  const [conversation, setConversation] = useState<Message[]>([]);
+  const [conversation, setConversation] = useState<Conversation[]>([]);
   const [inputText, setInputText] = useState<string>("");
   const [loading, setLoading] = useState<boolean>(false);
   const [detectedResult, setDetectedResult] = useState<string>("");
   const [targetLanguage, setTargetLanguage] = useState<string>("");
+
+  const chatContainerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (chatContainerRef.current) {
+      chatContainerRef.current.scrollTop =
+        chatContainerRef.current.scrollHeight;
+    }
+  }, [conversation]);
 
   // initialize language detection api when component is mounted
   const initializeLanguageDetectionApi = async () => {
@@ -118,23 +131,18 @@ export default function Home() {
     }
 
     initializeLanguageDetectionApi();
-    // initializeSummarizerApi();
-    // initializeTranslatorApi();
+    initializeSummarizerApi();
+    initializeTranslatorApi();
   }, []);
 
   // load conversation from localstorage
   useEffect(() => {
-    const stored = localStorage.getItem("conversation");
+    const storedData = localStorage.getItem("conversation");
 
-    if (stored) {
-      setConversation(JSON.parse(stored));
+    if (storedData) {
+      setConversation(JSON.parse(storedData));
     }
   }, []);
-
-  // save conversation to local storage
-  const updateConversation = (newMessge: Message[]) => {
-    setConversation(newMessge);
-  };
 
   // detect language fn
   const detectLanguageFunction = async (input: string) => {
@@ -152,86 +160,138 @@ export default function Home() {
         console.log("Best detected language:", bestCandidate.detectedLanguage);
         console.log(bestCandidate.detectedLanguage);
         setDetectedResult(bestCandidate.detectedLanguage);
+
+        // saving the conversation
+        const newConversation: Conversation = {
+          input,
+          result: [{ detectedLanguage: bestCandidate.detectedLanguage }],
+        };
+
+        const storedData = localStorage.getItem("conversation");
+        const allConversation: Conversation[] = storedData
+          ? JSON.parse(storedData)
+          : [];
+
+        allConversation.push(newConversation);
+        setConversation(allConversation);
+        setInputText("");
+        localStorage.setItem("conversation", JSON.stringify(allConversation));
       } catch (error) {
         console.error("Detection failed:", error);
       }
     }
   };
 
+  // handle form submit
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    await detectLanguageFunction(inputText);
+  };
+
+  // handle summaization
+  const handleSummarize = async (message: Conversation) => {
+    console.log(message);
+  };
+
   return (
     <main className="w-full h-screen">
       <div className="container mx-auto px-2 h-full">
-        {detectedResult && inputText ? (
+        {conversation.length > 0 ? (
           <div className="h-full max-w-3xl mx-auto relative">
             {/* absolute textarea and button */}
-            <div className="absolute z-10 bottom-0 mb-1 rounded w-full h-20 flex gap-2 shadow p-1.5 items-stretch bg-white/20 backdrop-blur">
+            <form
+              onSubmit={handleSubmit}
+              className="absolute z-10 bottom-0 mb-1 rounded w-full h-20 flex gap-2 shadow p-1.5 items-stretch bg-white/20 backdrop-blur"
+            >
               <textarea
+                onChange={(e) => setInputText(e.target.value)}
+                value={inputText}
                 placeholder="Enter your words here..."
                 className="flex-1 h-full w-full p-1 text-gray-900 text-base placeholder:text-gray-500 placeholder:text-sm resize-none border rounded focus:outline-slate-200 focus:ring-teal-500 focus:ring"
               ></textarea>
-              <button className="bg-black text-gray-100 px-5 rounded border border-transparent">
-                send
+              <button
+                type="submit"
+                className="bg-black text-gray-100 px-5 rounded border border-transparent flex items-center gap-1"
+              >
+                <span className="hidden sm:inline-block">send</span>{" "}
+                <IoIosSend className="size-4" />
               </button>
-            </div>
+            </form>
 
-            {/* content / conversation starts here */}
-            <div className="w-full h-[90%] pb-20 chat-container">
-              {/* chat bubble */}
-              <div className="max-w-2xl ml-auto">
-                <div className="chat chat-end">
-                  <div className="chat-bubble chat-bubble-secondary text-white text-base">
-                    {inputText}
-                  </div>
-                </div>
-                {/* error */}
-                <div className="max-w-xs sm:max-w-md ml-auto">
-                  <span className="text-xs text-red-600 text-right block">
-                    Lorem ipsum dolor sit amet consectetur.
-                  </span>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 my-2">
-                    {/* only show if the output text is in english language */}
-                    <button className="border py-1 rounded text-sm bg-gray-800 text-gray-100 border-transparent">
-                      Summarize
-                    </button>
+            <div
+              className="w-full h-[90%] pb-20 chat-container"
+              ref={chatContainerRef}
+            >
+              {conversation.map((message, index) => (
+                <div key={index}>
+                  {/* chat bubble */}
+                  <div className="max-w-2xl ml-auto">
+                    <div className="chat chat-end">
+                      <div className="chat-bubble chat-bubble-secondary text-white text-base">
+                        {message.input}
+                      </div>
+                    </div>
+                    {/* error */}
+                    <div className="max-w-xs sm:max-w-md ml-auto">
+                      {/* <span className="text-xs text-red-600 text-right block">
+                      Lorem ipsum dolor sit amet consectetur.
+                    </span> */}
+                      <div
+                        className={`grid ${
+                          message.result[0].detectedLanguage === "en"
+                            ? "grid-cols-1 sm:grid-cols-2"
+                            : "grid-cols-1"
+                        } gap-2 my-2`}
+                      >
+                        {message.result[0].detectedLanguage === "en" && (
+                          <button
+                            onClick={() => handleSummarize(message)}
+                            className="border py-1 rounded text-sm bg-gray-800 text-gray-100 border-transparent"
+                          >
+                            Summarize
+                          </button>
+                        )}
 
-                    <select
-                      name="language"
-                      className="select select-bordered w-full py-1 focus:outline-none focus:ring-0"
-                    >
-                      <option disabled selected>
-                        Translate to:
-                      </option>
-                      <option value="en">English</option>
-                      <option value="pt">Portuguese</option>
-                      <option value="es">Spanish</option>
-                      <option value="ru">Russian</option>
-                      <option value="tr">Turkish</option>
-                      <option value="fr">French</option>
-                    </select>
+                        <select
+                          name="language"
+                          className={`select select-bordered w-full py-1 focus:outline-none focus:ring-0 rounded`}
+                        >
+                          <option disabled selected>
+                            Translate to:
+                          </option>
+                          <option value="en">English</option>
+                          <option value="pt">Portuguese</option>
+                          <option value="es">Spanish</option>
+                          <option value="ru">Russian</option>
+                          <option value="tr">Turkish</option>
+                          <option value="fr">French</option>
+                        </select>
+                      </div>
+                    </div>
                   </div>
-                </div>
-              </div>
 
-              {detectedResult !== "" && (
-                <div className="chat chat-start max-w-2xl">
-                  <div className="chat-bubble chat-bubble-primary text-white text-base">
-                    Detected language:{" "}
-                    {detectedResult === "en"
-                      ? "English"
-                      : detectedResult === "pt"
-                      ? "Portuguese"
-                      : detectedResult === "es"
-                      ? "Spanish"
-                      : detectedResult === "ru"
-                      ? "Russian"
-                      : detectedResult === "tr"
-                      ? "Turkish"
-                      : detectedResult === "fr"
-                      ? "French"
-                      : ""}
-                  </div>
+                  {message.result[0].detectedLanguage !== "" && (
+                    <div className="chat chat-start max-w-2xl">
+                      <div className="chat-bubble chat-bubble-primary text-white text-base">
+                        Detected language:{" "}
+                        {message.result[0].detectedLanguage === "en"
+                          ? "English"
+                          : message.result[0].detectedLanguage === "pt"
+                          ? "Portuguese"
+                          : message.result[0].detectedLanguage === "es"
+                          ? "Spanish"
+                          : message.result[0].detectedLanguage === "ru"
+                          ? "Russian"
+                          : message.result[0].detectedLanguage === "tr"
+                          ? "Turkish"
+                          : message.result[0].detectedLanguage === "fr"
+                          ? "French"
+                          : ""}
+                      </div>
+                    </div>
+                  )}
                 </div>
-              )}
+              ))}
             </div>
           </div>
         ) : (
