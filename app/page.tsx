@@ -60,6 +60,7 @@ export default function Home() {
   const [conversation, setConversation] = useState<Conversation[]>([]);
   const [inputText, setInputText] = useState<string>("");
   const [detectedResult, setDetectedResult] = useState<string>("");
+  const [targetLang, setTargetLang] = useState<string>("");
 
   const chatContainerRef = useRef<HTMLDivElement>(null);
 
@@ -120,6 +121,8 @@ export default function Home() {
         length: "medium",
       };
 
+      console.log("Initializing summarizer with options:", options);
+
       if (summarizerCapabilities.available === "readily") {
         const summarizerInstance = await window.ai.summarizer.create(options);
         setSummarizer(summarizerInstance);
@@ -156,13 +159,38 @@ export default function Home() {
     try {
       const translatorCapability = await window.ai.translator.capabilities();
       if (translatorCapability.available === "readily") {
-        const translatorInstance = await window.ai.translator.create();
+        const translatorInstance = await window.ai.translator.create({
+          sourceLanguage: "en",
+          targetLanguage: targetLang,
+          monitor(m: DownloadMonitor) {
+            m.addEventListener(
+              "downloadprogress",
+              (e: DownloadProgressEvent) => {
+                console.log(`Downloaded ${e.loaded} of ${e.total} bytes.`);
+              }
+            );
+          },
+        });
+        setTranslator(translatorInstance);
+      } else if (translatorCapability.available === "readily") {
+        const translatorInstance = await window.ai.translator.create({
+          sourceLanguage: "en",
+          targetLanguage: "es",
+          monitor(m: DownloadMonitor) {
+            m.addEventListener(
+              "downloadprogress",
+              (e: DownloadProgressEvent) => {
+                console.log(`Downloaded ${e.loaded} of ${e.total} bytes.`);
+              }
+            );
+          },
+        });
         setTranslator(translatorInstance);
       } else {
         console.error("Translator API is not available.");
       }
     } catch (error) {
-      console.error("Error initializing Summarizer API:", error);
+      console.error("Error initializing Translator API:", error);
     }
   };
 
@@ -247,9 +275,7 @@ export default function Home() {
       return;
     }
 
-    const matches = longText.match(/\b\w+\b/g);
-
-    if (matches && matches.length < 150) {
+    if (longText.trim().length < 150) {
       alert("Sentence is too short");
       return;
     }
@@ -280,6 +306,7 @@ export default function Home() {
     cIndex: number
   ) => {
     const targetLanguage = e.target.value;
+    setTargetLang(targetLanguage);
 
     if (!translator) {
       console.error("Translator is not initialized.");
@@ -290,7 +317,7 @@ export default function Home() {
       // translation data for the specific conversation
       const translation = await translator.translate(
         conversation[cIndex].input,
-        targetLanguage
+        targetLang
       );
       console.log("Translated text:", translation);
 
